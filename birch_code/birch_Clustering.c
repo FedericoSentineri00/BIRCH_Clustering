@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <mpi.h>
-#include "point.h"
+
+#include "CFNode.h"
 #include "arraylist.h"
-#include "comms.h"
 
 
+const char filePath[] = "./BIRCH_CLUSTERING/DataSet_Test/dataset1D.txt";
 
 ArrayList* readFromFileToArrayList(char* path){
 
@@ -45,14 +46,16 @@ ArrayList* readFromFileToArrayList(char* path){
 
 int main (void) {
     ArrayList *pointsArrayList = readFromFileToArrayList(filePath);
+    
 
-    printf("Dimensione dello spazio: %d\n", getElementOnTop(pointsArrayList)->dimension);
+
+    printf("Dimensione dello spazio: %d\n", getElementOnTop(dimension));
 
     while(getElementOnTop(pointsArrayList) != NULL){
         printf("punto cordinate [");
         int i;
         PointND *puntino= removeOnTop(pointsArrayList);
-        for(i = 0; i < puntino->dimension-1; i++){
+        for(i = 0; i < dimension-1; i++){
             printf("%i , ", puntino->coordinates[i]);
         }
 

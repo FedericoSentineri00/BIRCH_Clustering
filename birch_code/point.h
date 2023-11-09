@@ -1,12 +1,13 @@
 #ifndef POINT_H
 #define POINT_H
 
+#include "comms.h"
+
 typedef struct {
-    int dimension;      // Numero di dimensioni
-    int *coordinates; // Array delle coordinate
+    double *coordinates; // Array delle coordinate
 } PointND;
 
-PointND* createPoint(int dimension);
+PointND* createPoint();
 void freePoint(PointND *point);
 
 #endif

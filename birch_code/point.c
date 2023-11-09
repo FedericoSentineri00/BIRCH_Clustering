@@ -3,14 +3,13 @@
 #include <stdlib.h>
 #include "point.h"
 
-PointND* createPoint(int dimension) {
+PointND* createPoint() {
     PointND *point = (PointND*)malloc(sizeof(PointND));
     if (point == NULL) {
         fprintf(stderr, "Errore nell'allocazione di memoria per il punto.\n");
         exit(1);
     }
 
-    point->dimension = dimension;
     point->coordinates = (int*)malloc(dimension * sizeof(int));
     if (point->coordinates == NULL) {
         fprintf(stderr, "Errore nell'allocazione di memoria per le coordinate.\n");

@@ -12,7 +12,6 @@ CFENTRY*  createCFEntry(){
     }
 
     entry->numberOfPoints = 0;
-    entry->points = createArrayList();
     
     int i;
     for (i = 0; i < dimension; i++) {
@@ -23,17 +22,17 @@ CFENTRY*  createCFEntry(){
     return entry;
 }
 
-void sddPoint(CFENTRY *entry,PointND *point){
+void addPointToEntry(CFENTRY *entry,PointND *point){
     int i;
+
+    //UPDATE SL, SS
     for(i=0;i<dimension;i++){
         entry->linearSum[i]=entry->linearSum[i]+ point->coordinates[i];
         entry->squareSum[i]=entry->squareSum[i]+ (point->coordinates[i] * point->coordinates[i] );
     }
     entry->numberOfPoints++;
-    add(entry->points,point);
 }
 
 void clearEntry(CFENTRY *entry){
-    freeArrayList(entry->points);
     free(entry);
 }

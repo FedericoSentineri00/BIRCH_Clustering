@@ -1,15 +1,17 @@
-#ifndef CFTREE_H
-#define CFTREE_H
+#ifndef CFNODE_H
+#define CFNODE_H
 
 #include "CFEntry.h"
-#include "comms.h"
 
 typedef struct {
-    CFNODE *entries[numberOfEntriesPerNode]; // Array delle coordinate
+    int nEntries;
+    CFNODE *nodeFather;                     //references to father node
+    CFENTRY *entries[numberOfEntriesPerNode]; //Array delle entries
+    CFNODE *children[numberOfChildrenNode]; //Array dei figli
 } CFNODE;
 
-CFNODE* createCFNode(CFNODE *node);
-void addEntry(CFNODE *node,CFENTRY *cfentry);
+CFNODE* createCFNode();
+void addPointToNode(CFNODE *node,PointND *point);
 void clearNode(CFNODE *node);
 
 #endif
