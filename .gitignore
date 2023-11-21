@@ -1,0 +1,13 @@
+*.cbp
+*.layout
+*.depend
+*~
+obj/
+.idea/
+*.cscope_file_list
+cbirch_output.csv
+output.csv
+covtype.csv
+*.o
+main
+ValgrindOut.xml
