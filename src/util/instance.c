@@ -25,8 +25,8 @@ char* get_field(char* line, char* delimiters, int num)
 double* instance_read(char* line, int dimensionality, char* delimiters)
 {
     double* sample = smalloc(sizeof(double*) * dimensionality);
-
-    for (int i = 0; i < dimensionality; ++i)
+    int i;
+    for (i = 0; i < dimensionality; ++i)
     {
         char* field = get_field(line, delimiters, i);
         sscanf(field, "%lf", &sample[i]);

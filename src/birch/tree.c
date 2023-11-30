@@ -158,7 +158,8 @@ Array* tree_get_subclusters(Tree* tree)
         if(!node_is_dummy(leaf))
         {
 
-            for (int i = 0; i < array_size(leaf->entries); ++i)
+            int i;
+            for(i  = 0; i < array_size(leaf->entries); ++i)
             {
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 array_add(subclusters, array_clone(entry->indexes));
@@ -180,10 +181,12 @@ int tree_count_subclusters(Tree* tree)
     {
         if(!node_is_dummy(leaf))
         {
-            for (int i = 0; i < array_size(leaf->entries); ++i)
+            int i;
+            for(i  = 0; i < array_size(leaf->entries); ++i)
             {
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
-                for (int j = 0; j < array_size(entry->indexes); ++j)
+                int j;
+                for(j  = 0; j < array_size(entry->indexes); ++j)
                 {
                     ++count;
                 }
@@ -195,6 +198,32 @@ int tree_count_subclusters(Tree* tree)
     return count;
 }
 
+Message_cluster tree_get_message_cluster_infos(Tree *tree){
+    Message_cluster mc;
+    mc.nCluster=0;
+    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
+
+    while(leaf != NULL)
+    {
+        if(!node_is_dummy(leaf))
+        {
+            int i;
+            for(i  = 0; i < array_size(leaf->entries); ++i)
+            {
+                Entry* entry = (Entry*) array_get(leaf->entries, i);
+                mc.clusters[mc.nCluster].n = entry->n;
+                int dim;
+                for(dim=0; dim< entry->dim;dim++){
+                    mc.clusters[mc.nCluster].ls[dim] = entry->ls[dim];
+                }
+                mc.nCluster++;
+            }
+        }
+        leaf = leaf->next_leaf;
+    }
+
+    return mc;
+}
 
 int* tree_get_cluster_id_by_instance_index(Tree* tree)
 {
@@ -206,10 +235,12 @@ int* tree_get_cluster_id_by_instance_index(Tree* tree)
     {
         if(!node_is_dummy(leaf))
         {
-            for (int i = 0; i < array_size(leaf->entries); ++i)
+            int i;
+            for(i  = 0; i < array_size(leaf->entries); ++i)
             {
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
-                for (int j = 0; j < array_size(entry->indexes); ++j)
+                int j;
+            for(j  = 0; j < array_size(entry->indexes); ++j)
                 {
                     Integer* index = (Integer*) array_get(entry->indexes, j);
                     cluster_id_by_entry_index[index->value] = cluster_id;
