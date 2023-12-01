@@ -63,14 +63,14 @@ void print_arguments_message()
 }
 
 void print_clusters(Message_cluster mc, int dim){
-    char *clusterText="";
+    char clusterText[1024]="";
     int i;
     for(i=0; i<mc.nCluster; i++){
         sprintf(clusterText, "%d-%d cluster with %d point\n", my_rank,i,mc.clusters[i].n);
 
         int d;
         for(d=0;d<dim;d++){
-            sprintf(clusterText, "%s %d %f\n", clusterText,i,mc.clusters[i].ls[d]);
+            sprintf(clusterText, "%s %d %f\n", clusterText,d,mc.clusters[i].ls[d]);
         }
         printf("%s" , clusterText);
     }
@@ -159,8 +159,41 @@ int main(int argc, char* argv[])
     fclose(stream);
 
     Message_cluster mc = tree_get_message_cluster_infos(tree);
-    print_clusters(mc, dimensionality);
+    
     print_output(tree, instances_indexes, output_file_path);
+
+    if(my_rank==0){
+        Message_cluster mc2;
+        int nClusters=0;
+        MPI_Recv(&nClusters, 1,MPI_INT,1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        mc2.nCluster=nClusters;
+
+        int i;
+        for(i=0;i<nClusters;i++){
+            int d;
+            for(d=0;d<dimensionality;d++){
+                MPI_Recv(&mc2.clusters[i].ls[d], 1,MPI_DOUBLE,1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            }
+        }
+
+        print_clusters(mc, dimensionality);
+        printf("---------------------------------");
+        print_clusters(mc2, dimensionality);
+
+    }if(my_rank==1){
+
+        print_clusters(mc, dimensionality);
+        MPI_Send(&mc.nCluster, 1, MPI_INT, 0,0, MPI_COMM_WORLD);
+        int i;
+        for(i=0;i<mc.nCluster;i++){
+            int d;
+            for(d=0;d<dimensionality;d++){
+                MPI_Send(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,0,0,MPI_COMM_WORLD);
+            }
+        }
+
+    }
+
 
     array_deep_clear(instances_indexes);
     array_free(instances_indexes);
