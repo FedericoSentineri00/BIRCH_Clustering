@@ -9,8 +9,11 @@
 #include "../include/util/array.h"
 #include <mpi.h>
 
+#define MAX_STEPS 1000
+
 int comm_sz;
 int my_rank;
+
 
 double distance(Entry* e1, Entry* e2)
 {
@@ -76,9 +79,33 @@ void print_clusters(Message_cluster mc, int dim){
     }
 }
 
+void sendClustersTo(Message_cluster mc, int dest, int dim){
+    MPI_Send(&mc.nCluster, 1, MPI_INT, dest,0, MPI_COMM_WORLD);
+    int i;
+    for(i=0;i<mc.nCluster;i++){
+        int d;
+        for(d=0;d<dim;d++){
+            MPI_Send(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,dest,0,MPI_COMM_WORLD);
+        }
+    }
+}
+
+void receiveClusterFrom(Message_cluster mc, int source, int dim){
+    int nClusters=0;
+    MPI_Recv(&nClusters, 1,MPI_INT,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    mc.nCluster=nClusters;
+
+    int i;
+    for(i=0;i<nClusters;i++){
+        int d;
+        for(d=0;d<dim;d++){
+            MPI_Recv(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
-
     MPI_Init(NULL,NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -132,12 +159,6 @@ int main(int argc, char* argv[])
         count++;
     }
 
-    if(my_rank == 0){
-        printf("sono lo 0 figli di troia, il mio file size vale %d: leggo da riga %d a riga %d\n" , filesize, count, (filesize/comm_sz)*(my_rank+1));
-    }else{
-        printf("%d il mio file size vale %d: leggo da riga %d a riga %d\n" ,my_rank, filesize, count, (filesize/comm_sz)*(my_rank+1));
-    }
-
     delimiters = smalloc(sizeof(char*) * (strlen(column_delimiter) + 3));
     strcpy(delimiters, column_delimiter);
     strcat(delimiters, "\r\n");
@@ -158,42 +179,58 @@ int main(int argc, char* argv[])
 
     fclose(stream);
 
-    Message_cluster mc = tree_get_message_cluster_infos(tree);
-    
-    print_output(tree, instances_indexes, output_file_path);
+    int senders[MAX_STEPS];
+    int receivers[MAX_STEPS];
+    int nMerge=0;
 
-    if(my_rank==0){
-        Message_cluster mc2;
-        int nClusters=0;
-        MPI_Recv(&nClusters, 1,MPI_INT,1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-        mc2.nCluster=nClusters;
+    if(my_rank == 0){
+        Message_cluster mc = tree_get_message_cluster_infos(tree);
+        print_clusters(mc, dimensionality);
 
-        int i;
-        for(i=0;i<nClusters;i++){
-            int d;
-            for(d=0;d<dimensionality;d++){
-                MPI_Recv(&mc2.clusters[i].ls[d], 1,MPI_DOUBLE,1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        int partner,round,proc;
+        for(proc=0; proc<comm_sz;proc++){
+
+            for (round = 1; round < comm_sz; round *= 2) {
+                if (proc % (2 * round) == 0) {
+                    // Calcola il partner per l'operazione di join
+                    partner = proc + round;
+                    
+                    if (partner < comm_sz) {
+                        senders[nMerge]=proc;
+                        receivers[nMerge]=partner;
+                    }
+                }
             }
         }
-
-        print_clusters(mc, dimensionality);
-        printf("---------------------------------");
-        print_clusters(mc2, dimensionality);
-
-    }if(my_rank==1){
-
-        print_clusters(mc, dimensionality);
-        MPI_Send(&mc.nCluster, 1, MPI_INT, 0,0, MPI_COMM_WORLD);
-        int i;
-        for(i=0;i<mc.nCluster;i++){
-            int d;
-            for(d=0;d<dimensionality;d++){
-                MPI_Send(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,0,0,MPI_COMM_WORLD);
-            }
-        }
-
     }
 
+    MPI_Bcast(&nMerge, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(senders, nMerge, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(receivers, nMerge, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int i;
+    for(i=0; i<nMerge;i++){
+        if(senders[i] == my_rank){
+            Message_cluster mc = tree_get_message_cluster_infos(tree);
+            sendClustersTo(mc, receivers[i],dimensionality);
+        }else if(receivers[i] == my_rank){
+            Message_cluster mc2;
+            receiveClusterFrom(mc2, senders[i],dimensionality);
+
+            int n;
+            for (n = 0; n < mc2.nCluster; n++){
+                Entry* e = entry_create_default(dimensionality);
+                e->n=mc2.clusters[n].n;
+                e->ls=mc2.clusters[n].ls;
+                tree_insert_entry(tree,e);
+            }
+        }
+    }
+
+    if(my_rank == 0){
+        Message_cluster mc = tree_get_message_cluster_infos(tree);
+        print_clusters(mc, dimensionality);
+    }
 
     array_deep_clear(instances_indexes);
     array_free(instances_indexes);
