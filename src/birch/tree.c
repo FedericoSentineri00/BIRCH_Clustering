@@ -63,11 +63,14 @@ void tree_free(Tree* tree)
     free(tree);
 }
 
-int tree_insert_entry(Tree* tree, Entry* entry){
+void tree_insert_entry(Tree* tree, Entry* entry){
     int instance_index = tree->instance_index;
+    tree->instance_index++;
+
+    entry->indexes = array_create(4);
+    array_add(entry->indexes, integer_create(tree->dimensionality));
     bool hold_memory = false;
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
-
     if (dont_split == false)
     {
         // if dontSplit is false, it means there was not enough space to insert the new entry in the tree,
@@ -75,12 +78,12 @@ int tree_insert_entry(Tree* tree, Entry* entry){
         tree_split_root(tree);
     }
 
+    /*
     if (hold_memory == false)
     {
         entry_free(entry);
     }
-
-    return instance_index;
+    */
 }
 
 int tree_insert(Tree* tree, double* sample)

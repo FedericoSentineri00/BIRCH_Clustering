@@ -32,7 +32,7 @@ typedef struct message_cluster Message_cluster;
 int* tree_get_cluster_id_by_instance_index(Tree* tree);
 Tree* tree_create(int dimensionality, int branching_factor, double threshold, double (*distance)(Entry*, Entry*), bool apply_merging_refinement);
 int tree_insert(Tree* tree, double* sample);
-int tree_insert_entry(Tree* tree, Entry* entry);
+void tree_insert_entry(Tree* tree, Entry* entry);
 void tree_free(Tree* tree);
 Message_cluster tree_get_message_cluster_infos(Tree *tree);
 

@@ -69,7 +69,7 @@ void print_clusters(Message_cluster mc, int dim){
     char clusterText[1024]="";
     int i;
     for(i=0; i<mc.nCluster; i++){
-        sprintf(clusterText, "%d-%d cluster with %d point\n", my_rank,i,mc.clusters[i].n);
+        sprintf(clusterText, "rank %d- %d cluster with %d point\n", my_rank,i,mc.clusters[i].n);
 
         int d;
         for(d=0;d<dim;d++){
@@ -87,10 +87,12 @@ void sendClustersTo(Message_cluster mc, int dest, int dim){
         for(d=0;d<dim;d++){
             MPI_Send(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,dest,0,MPI_COMM_WORLD);
         }
+        MPI_Send(&mc.clusters[i].n, 1,MPI_INT,dest,0,MPI_COMM_WORLD);
     }
 }
 
-void receiveClusterFrom(Message_cluster mc, int source, int dim){
+Message_cluster receiveClusterFrom(int source, int dim){
+    Message_cluster mc;
     int nClusters=0;
     MPI_Recv(&nClusters, 1,MPI_INT,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     mc.nCluster=nClusters;
@@ -101,7 +103,10 @@ void receiveClusterFrom(Message_cluster mc, int source, int dim){
         for(d=0;d<dim;d++){
             MPI_Recv(&mc.clusters[i].ls[d], 1,MPI_DOUBLE,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
+        MPI_Recv(&mc.clusters[i].n, 1,MPI_DOUBLE,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }
+
+    return mc;
 }
 
 int main(int argc, char* argv[])
@@ -150,7 +155,6 @@ int main(int argc, char* argv[])
 
     MPI_Bcast(&filesize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-
     stream = fopen(input_file_path, "r");
     int count;
     
@@ -177,6 +181,7 @@ int main(int argc, char* argv[])
         count++;
     } while(fgets(line, 1024, stream) && ((my_rank<comm_sz-1) ? count < (filesize/comm_sz)*(my_rank+1) : true));    //se l'ultimo processo, legge fino a fine file, per evitare di non perdere valori
 
+    print_output(tree, instances_indexes, output_file_path);
     fclose(stream);
 
     int senders[MAX_STEPS];
@@ -184,8 +189,7 @@ int main(int argc, char* argv[])
     int nMerge=0;
 
     if(my_rank == 0){
-        Message_cluster mc = tree_get_message_cluster_infos(tree);
-        print_clusters(mc, dimensionality);
+        
 
         int partner,round,proc;
         for(proc=0; proc<comm_sz;proc++){
@@ -196,8 +200,10 @@ int main(int argc, char* argv[])
                     partner = proc + round;
                     
                     if (partner < comm_sz) {
-                        senders[nMerge]=proc;
-                        receivers[nMerge]=partner;
+                        senders[nMerge]=partner;
+                        receivers[nMerge]=proc;
+                        //printf("%d-%d\n",receivers[nMerge],senders[nMerge]);
+                        nMerge++;
                     }
                 }
             }
@@ -213,31 +219,42 @@ int main(int argc, char* argv[])
         if(senders[i] == my_rank){
             Message_cluster mc = tree_get_message_cluster_infos(tree);
             sendClustersTo(mc, receivers[i],dimensionality);
+            
+            
         }else if(receivers[i] == my_rank){
-            Message_cluster mc2;
-            receiveClusterFrom(mc2, senders[i],dimensionality);
+
+            Message_cluster mc = tree_get_message_cluster_infos(tree);
+            printf("\nclusters miei---------------- \n");
+            print_clusters(mc, dimensionality);
+
+            Message_cluster mc2 = receiveClusterFrom(senders[i],dimensionality);
+            printf("\n\nclusters ricevuti---------------- \n");
+            print_clusters(mc2, dimensionality);
+            
 
             int n;
             for (n = 0; n < mc2.nCluster; n++){
+
                 Entry* e = entry_create_default(dimensionality);
                 e->n=mc2.clusters[n].n;
                 e->ls=mc2.clusters[n].ls;
+                e->dim=dimensionality;
+
+                int d;
+                for (d = 0; d < dimensionality; d++)
+                {
+                    e->ss[d] = e->ls[d] * e->ls[d];
+                }
+                
                 tree_insert_entry(tree,e);
+                //entry_free(e);
             }
+            printf("\n\nclusters mergiati---------------- \n");
+            mc = tree_get_message_cluster_infos(tree);
+            print_clusters(mc, dimensionality);
         }
     }
 
-    if(my_rank == 0){
-        Message_cluster mc = tree_get_message_cluster_infos(tree);
-        print_clusters(mc, dimensionality);
-    }
-
-    array_deep_clear(instances_indexes);
-    array_free(instances_indexes);
-    free(delimiters);
-    tree_free(tree);
-
-    
     MPI_Finalize();
 
     return 0;
