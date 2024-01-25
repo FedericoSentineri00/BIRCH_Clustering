@@ -27,29 +27,6 @@ double distance(Entry* e1, Entry* e2)
     return sqrt(dist);
 }
 
-void print_output(Tree* tree, Array* indexes, char *output_file_path)
-{
-    FILE *f = fopen(output_file_path, "w");
-    if (f == NULL)
-    {
-        printf("ERROR: main.c/print_output(): \"Error opening file\"\n");
-        exit(1);
-    }
-
-    int* cluster_id_by_entry_index = tree_get_cluster_id_by_instance_index(tree);
-    
-    int i;
-    for (i = 0; i < array_size(indexes); ++i)
-    {
-        Integer* entry_index = (Integer*) array_get(indexes, i);
-        fprintf(f, "cluster_%d\n", cluster_id_by_entry_index[entry_index->value]);
-    }
-
-    fclose(f);
-
-    free(cluster_id_by_entry_index);
-}
-
 void print_arguments_message()
 {
     printf("\n>>> Invalid numbers of arguments! <<<\n");
@@ -60,9 +37,7 @@ void print_arguments_message()
     printf("\n4. Dataset File Path: String;\n");
     printf("\n5. Dataset Delimiters: String;\n");
     printf("\n6. Ignore Last Column of the Dataset: 1 for yes, 0 for no;\n");
-    printf("\n7. Output File Name: String.\n");
     printf("\n\nThe line bellow is an example of a valid command line for running this program:\n");
-    printf("./main 100 0.8 1 IRIS.csv , 1 output.csv\n\n");
 }
 
 void print_clusters(Message_cluster mc, int dim){
@@ -115,7 +90,7 @@ int main(int argc, char* argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
-    if (argc < 8)
+    if (argc < 7)
     {
         print_arguments_message();
         exit(1);
@@ -128,8 +103,6 @@ int main(int argc, char* argv[])
     char* input_file_path = argv[4];
     char* column_delimiter = argv[5];
     int last_column_is_label = atoi(argv[6]);
-    char* output_file_path = argv[7];
-    sprintf(output_file_path, "%s_%d.csv", output_file_path, my_rank);
     //----------------CONFIGURATION----------------
     
     FILE* stream;
@@ -181,7 +154,6 @@ int main(int argc, char* argv[])
         count++;
     } while(fgets(line, 1024, stream) && ((my_rank<comm_sz-1) ? count < (filesize/comm_sz)*(my_rank+1) : true));    //se l'ultimo processo, legge fino a fine file, per evitare di non perdere valori
 
-    print_output(tree, instances_indexes, output_file_path);
     fclose(stream);
 
     int senders[MAX_STEPS];
@@ -196,13 +168,11 @@ int main(int argc, char* argv[])
 
             for (round = 1; round < comm_sz; round *= 2) {
                 if (proc % (2 * round) == 0) {
-                    // Calcola il partner per l'operazione di join
                     partner = proc + round;
                     
                     if (partner < comm_sz) {
                         senders[nMerge]=partner;
                         receivers[nMerge]=proc;
-                        //printf("%d-%d\n",receivers[nMerge],senders[nMerge]);
                         nMerge++;
                     }
                 }
@@ -224,13 +194,8 @@ int main(int argc, char* argv[])
         }else if(receivers[i] == my_rank){
 
             Message_cluster mc = tree_get_message_cluster_infos(tree);
-            printf("\nclusters miei---------------- \n");
-            print_clusters(mc, dimensionality);
 
             Message_cluster mc2 = receiveClusterFrom(senders[i],dimensionality);
-            printf("\n\nclusters ricevuti---------------- \n");
-            print_clusters(mc2, dimensionality);
-            
 
             int n;
             for (n = 0; n < mc2.nCluster; n++){
@@ -249,10 +214,12 @@ int main(int argc, char* argv[])
                 tree_insert_entry(tree,e);
                 //entry_free(e);
             }
-            printf("\n\nclusters mergiati---------------- \n");
-            mc = tree_get_message_cluster_infos(tree);
-            print_clusters(mc, dimensionality);
         }
+    }
+
+    if(my_rank == 0){
+        Message_cluster mc = tree_get_message_cluster_infos(tree);
+        print_clusters(mc, dimensionality);
     }
 
     MPI_Finalize();
