@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include "entry.h"
 
+//#include <stdio.h>
+
 #define MAX_DIMENSION 1000
 #define MAX_CLUSTERS 50
 

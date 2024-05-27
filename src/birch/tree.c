@@ -239,6 +239,7 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
                     mc.clusters[mc.nCluster].ls[dim] = entry->ls[dim];
                 }
                 mc.nCluster++;
+                //printf("\n\n%d",mc.nCluster);
             }
         }
         leaf = leaf->next_leaf;

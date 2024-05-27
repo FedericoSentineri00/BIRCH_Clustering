@@ -44,7 +44,7 @@ void print_clusters(Message_cluster mc, int dim){
     char clusterText[1024]="";
     int i;
     for(i=0; i<mc.nCluster; i++){
-        sprintf(clusterText, "rank %d- %d cluster with %d point\n", my_rank,i,mc.clusters[i].n);
+        sprintf(clusterText, "Process %d - Cluster %d with %d points\n", my_rank,i,mc.clusters[i].n);
 
         int d;
         for(d=0;d<dim;d++){
@@ -86,7 +86,14 @@ Message_cluster receiveClusterFrom(int source, int dim){
 
 int main(int argc, char* argv[])
 {
+    double t1,t2;
+
     MPI_Init(NULL,NULL);
+
+    if(my_rank == 0){
+        t1 = MPI_Wtime();
+    }
+
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
@@ -145,7 +152,7 @@ int main(int argc, char* argv[])
     Tree* tree = tree_create(dimensionality, branching_factor, threshold, distance, apply_merging_refinement == 1);
     Array* instances_indexes = array_create(1);
 
-    do {
+    do {        
         double* instance = instance_read(line, dimensionality, delimiters);
         int instance_index = tree_insert(tree, instance);
         array_add(instances_indexes, integer_create(instance_index));
@@ -162,22 +169,21 @@ int main(int argc, char* argv[])
 
     if(my_rank == 0){
         
+        int phases;
+        int i;
+        for(phases = 0; phases < ceil(log2(comm_sz)); phases++){
+            int this_pow = (int)pow(2,phases);
+            int increment_support = (int)pow(2,phases+1);
+		    for(i=0;i+this_pow<comm_sz; i=i+increment_support){
+			    int matched = i+this_pow;
+                senders[nMerge]=matched;
+                receivers[nMerge]=i;
+                nMerge++;
 
-        int partner,round,proc;
-        for(proc=0; proc<comm_sz;proc++){
-
-            for (round = 1; round < comm_sz; round *= 2) {
-                if (proc % (2 * round) == 0) {
-                    partner = proc + round;
-                    
-                    if (partner < comm_sz) {
-                        senders[nMerge]=partner;
-                        receivers[nMerge]=proc;
-                        nMerge++;
-                    }
-                }
-            }
-        }
+			    //printf("%d - %d ", i, matched);
+		    }
+            //printf("\n");
+	    }
     }
 
     MPI_Bcast(&nMerge, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -189,17 +195,15 @@ int main(int argc, char* argv[])
         if(senders[i] == my_rank){
             Message_cluster mc = tree_get_message_cluster_infos(tree);
             sendClustersTo(mc, receivers[i],dimensionality);
-            
-            
         }else if(receivers[i] == my_rank){
-
-            Message_cluster mc = tree_get_message_cluster_infos(tree);
+            //Message_cluster mc = tree_get_message_cluster_infos(tree);
+            //print_clusters(mc, dimensionality);
 
             Message_cluster mc2 = receiveClusterFrom(senders[i],dimensionality);
-
+            //printf("\n\n %d) Clusters ricevuti da %d---------------- \n", my_rank, senders[i]);
+            //print_clusters(mc2, dimensionality);
             int n;
             for (n = 0; n < mc2.nCluster; n++){
-
                 Entry* e = entry_create_default(dimensionality);
                 e->n=mc2.clusters[n].n;
                 e->ls=mc2.clusters[n].ls;
@@ -219,7 +223,13 @@ int main(int argc, char* argv[])
 
     if(my_rank == 0){
         Message_cluster mc = tree_get_message_cluster_infos(tree);
+        //printf("\n\nFINE\n");
         print_clusters(mc, dimensionality);
+    }
+
+    if(my_rank == 0){
+        t2 = MPI_Wtime();
+        printf("\n\nEXECUTION TIME: %f s\n\n",(t2-t1));
     }
 
     MPI_Finalize();
