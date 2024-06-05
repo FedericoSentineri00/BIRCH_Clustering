@@ -1,13 +1,10 @@
 #include <stdbool.h>
 #include "../../include/util/util.h"
 
-bool double_cmp(double* d1, double* d2, int n)
-{
+bool double_cmp(double* d1, double* d2, int n){
     int i;
-    for (i = 0; i < n; ++i)
-    {
-        if (d1[i] != d2[i])
-        {
+    for (i = 0; i < n; ++i){
+        if (d1[i] != d2[i]){
             return false;
         }
     }

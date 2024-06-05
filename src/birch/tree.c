@@ -8,15 +8,7 @@
 void tree_split_root(Tree *tree);
 
 
-Tree* tree_create
-(
-    int dimensionality,
-    int branching_factor,
-    double threshold,
-    double (*distance)(struct entry*, struct entry*),
-    bool apply_merging_refinement
-)
-{
+Tree* tree_create(int dimensionality, int branching_factor, double threshold, double (*distance)(struct entry*, struct entry*), bool apply_merging_refinement){
     Tree* tree = (Tree*) smalloc(sizeof(Tree));
 
     tree->dimensionality = dimensionality;
@@ -29,24 +21,20 @@ Tree* tree_create
 }
 
 
-void tree_free_rec(Node* root)
-{
+void tree_free_rec(Node* root){
     int i;
     int entries_size;
     Entry *curr_entry;
 
     entries_size = array_size(root->entries);
 
-    for (i = 0; i < entries_size; ++i)
-    {
+    for (i = 0; i < entries_size; ++i){
         curr_entry = (Entry*) array_get(root->entries, i);
-        if (curr_entry->child != NULL)
-        {
+        if (curr_entry->child != NULL){
             tree_free_rec(curr_entry->child);
         }
 
-        if (curr_entry->indexes != NULL)
-        {
+        if (curr_entry->indexes != NULL){
             array_deep_clear(curr_entry->indexes);
         }
         entry_free(curr_entry);
@@ -56,8 +44,7 @@ void tree_free_rec(Node* root)
 }
 
 
-void tree_free(Tree* tree)
-{
+void tree_free(Tree* tree){
     tree_free_rec(tree->root);
     node_free(tree->leaf_list);
     free(tree);
@@ -71,16 +58,14 @@ void tree_insert_entry(Tree* tree, Entry* entry){
     array_add(entry->indexes, integer_create(tree->dimensionality));
     bool hold_memory = false;
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
-    if (dont_split == false)
-    {
+    if (dont_split == false){
         // if dontSplit is false, it means there was not enough space to insert the new entry in the tree,
         // therefore wee need to split the root to make more room
         tree_split_root(tree);
     }
 }
 
-int tree_insert(Tree* tree, double* sample)
-{
+int tree_insert(Tree* tree, double* sample){
     int instance_index = tree->instance_index;
     tree->instance_index++;
 
@@ -88,15 +73,13 @@ int tree_insert(Tree* tree, double* sample)
     bool hold_memory = false;
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
 
-    if (dont_split == false)
-    {
+    if (dont_split == false){
         // if dontSplit is false, it means there was not enough space to insert the new entry in the tree,
         // therefore wee need to split the root to make more room
         tree_split_root(tree);
     }
 
-    if (hold_memory == false)
-    {
+    if (hold_memory == false){
         entry_free(entry);
     }
 
@@ -104,8 +87,7 @@ int tree_insert(Tree* tree, double* sample)
 }
 
 
-void tree_split_root(Tree *tree)
-{
+void tree_split_root(Tree *tree){
     // the split happens by finding the two entries in this node that are the most far apart
     // we then use these two entries as a "pivot" to redistribute the old entries into two new nodes
 
@@ -143,8 +125,7 @@ void tree_split_root(Tree *tree)
     array_add(new_root->entries, new_entry_2);
 
     // this updates the pointers to the list of leaves
-    if(tree->root->is_leaf == true)
-    {
+    if(tree->root->is_leaf == true){
         // if root was a leaf
         tree->leaf_list->next_leaf = new_node_1;
         new_node_1->prev_leaf = tree->leaf_list;
@@ -163,19 +144,15 @@ void tree_split_root(Tree *tree)
 }
 
 
-Array* tree_get_subclusters(Tree* tree)
-{
+Array* tree_get_subclusters(Tree* tree){
     Array* subclusters = array_create(1);
     Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
 
-    while(leaf != NULL)
-    {
-        if(!node_is_dummy(leaf))
-        {
+    while(leaf != NULL){
+        if(!node_is_dummy(leaf)){
 
             int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i)
-            {
+            for(i  = 0; i < array_size(leaf->entries); ++i){
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 array_add(subclusters, array_clone(entry->indexes));
             }
@@ -187,22 +164,17 @@ Array* tree_get_subclusters(Tree* tree)
 }
 
 
-int tree_count_subclusters(Tree* tree)
-{
+int tree_count_subclusters(Tree* tree){
     int count = 0;
     Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
 
-    while(leaf != NULL)
-    {
-        if(!node_is_dummy(leaf))
-        {
+    while(leaf != NULL){
+        if(!node_is_dummy(leaf)){
             int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i)
-            {
+            for(i  = 0; i < array_size(leaf->entries); ++i){
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 int j;
-                for(j  = 0; j < array_size(entry->indexes); ++j)
-                {
+                for(j  = 0; j < array_size(entry->indexes); ++j){
                     ++count;
                 }
             }
@@ -218,13 +190,10 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
     mc.nCluster=0;
     Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
 
-    while(leaf != NULL)
-    {
-        if(!node_is_dummy(leaf))
-        {
+    while(leaf != NULL){
+        if(!node_is_dummy(leaf)){
             int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i)
-            {
+            for(i  = 0; i < array_size(leaf->entries); ++i){
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 mc.clusters[mc.nCluster].n = entry->n;
                 int dim;
@@ -240,23 +209,19 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
     return mc;
 }
 
-int* tree_get_cluster_id_by_instance_index(Tree* tree)
-{
+int* tree_get_cluster_id_by_instance_index(Tree* tree){
     Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
     int* cluster_id_by_entry_index = smalloc(tree->instance_index * sizeof(int));
     int cluster_id = 0;
 
-    while(leaf != NULL)
-    {
-        if(!node_is_dummy(leaf))
-        {
+    while(leaf != NULL){
+        if(!node_is_dummy(leaf)){
             int i;
             for(i  = 0; i < array_size(leaf->entries); ++i)
             {
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 int j;
-            for(j  = 0; j < array_size(entry->indexes); ++j)
-                {
+                for(j  = 0; j < array_size(entry->indexes); ++j){
                     Integer* index = (Integer*) array_get(entry->indexes, j);
                     cluster_id_by_entry_index[index->value] = cluster_id;
                 }

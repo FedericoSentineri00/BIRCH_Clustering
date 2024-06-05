@@ -18,8 +18,7 @@ int my_rank;
 double distance(Entry* e1, Entry* e2){
     double dist = 0;
     int i;
-    for (i = 0; i < e1->dim; ++i)
-    {
+    for (i = 0; i < e1->dim; ++i){
         double diff = (e1->ls[i] / e1->n) - (e2->ls[i] / e2->n);
         dist += diff * diff;
     }
@@ -79,8 +78,7 @@ Message_cluster receiveClustersFrom(int source, int dim){
     return mc;
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
     double t1,t2;
 
     MPI_Init(NULL,NULL);
@@ -92,8 +90,7 @@ int main(int argc, char* argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
-    if (argc < 7)
-    {
+    if (argc < 7){
         print_arguments_message();
         exit(1);
     }

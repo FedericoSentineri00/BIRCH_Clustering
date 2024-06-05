@@ -8,8 +8,7 @@
 #define INDEXES_INITIAL_SIZE 4
 
 
-Entry* entry_create_default(int dim)
-{
+Entry* entry_create_default(int dim){
     Entry* entry = (Entry*) smalloc(sizeof(Entry));
 
     entry->dim = dim;
@@ -24,13 +23,7 @@ Entry* entry_create_default(int dim)
 }
 
 
-Entry* entry_create
-(
-    double* x,
-    int dim,
-    int index
-)
-{
+Entry* entry_create(double* x, int dim, int index){
     int i;
 
     Entry* entry = entry_create_default(dim);
@@ -40,8 +33,7 @@ Entry* entry_create
 
     smemcpy(entry->ls, x, dim * sizeof(x));
 
-    for (i = 0; i < entry->dim; i++)
-    {
+    for (i = 0; i < entry->dim; i++){
         entry->ss[i] = entry->ls[i] * entry->ls[i];
     }
 
@@ -49,59 +41,47 @@ Entry* entry_create
     array_add(entry->indexes, integer_create(index));
 
     return entry;
-
 }
 
 
-void entry_free(Entry *entry)
-{
+void entry_free(Entry *entry){
     entry->dim = 0;
     entry->n = 0;
 
-    if (entry->ls != NULL)
-    {
+    if (entry->ls != NULL){
         free(entry->ls);
     }
 
-    if (entry->ss != NULL)
-    {
+    if (entry->ss != NULL){
         free(entry->ss);
     }
 
-    if (entry->indexes != NULL)
-    {
+    if (entry->indexes != NULL){
         array_free(entry->indexes);
     }
 
     free(entry);
-
 }
 
 
-void entry_update(Entry *e1, Entry *e2)
-{
+void entry_update(Entry *e1, Entry *e2){
     int i;
 
     e1->n += e2->n;
 
-    for(i = 0; i < e1->dim; ++i)
-    {
+    for(i = 0; i < e1->dim; ++i){
         e1->ls[i] += e2->ls[i];
     }
 
-    for(i = 0; i < e1->dim; i++)
-    {
+    for(i = 0; i < e1->dim; i++){
         e1->ss[i] += e2->ss[i];
     }
 
-    if(e1->child == NULL)
-    {
-        if(e1->indexes != NULL && e2->indexes != NULL)
-        {
+    if(e1->child == NULL){
+        if(e1->indexes != NULL && e2->indexes != NULL){
             array_add_all(e1->indexes, e2->indexes);
         }
-        else if(e1->indexes == NULL && e2->indexes != NULL)
-        {
+        else if(e1->indexes == NULL && e2->indexes != NULL){
             e1->indexes = array_clone(e2->indexes);
         }
     }
@@ -109,29 +89,19 @@ void entry_update(Entry *e1, Entry *e2)
 }
 
 
-bool entry_is_within_threshold
-(
-    Entry *e1,
-    Entry *e2,
-    double threshold,
-    double (*distance)(Entry*, Entry*)
-)
-{
+bool entry_is_within_threshold(Entry *e1, Entry *e2, double threshold, double (*distance)(Entry*, Entry*)){
     double dist = distance(e1, e2);
 
-    if(dist == 0 || dist <= threshold)
-    {
+    if(dist == 0 || dist <= threshold){
         return true;
     }
-    else
-    {
+    else{
         return false;
     }
 }
 
 
-bool entry_cmp(Entry *e1, Entry *e2)
-{
+bool entry_cmp(Entry *e1, Entry *e2){
     if (e1->n != e2->n)
         return false;
 
@@ -163,16 +133,13 @@ bool entry_cmp(Entry *e1, Entry *e2)
 }
 
 
-void entry_remove(Array* entries, Entry* entry)
-{
+void entry_remove(Array* entries, Entry* entry){
     int index = 0;
-    while (index < array_size(entries) && entry_cmp(entry, array_get(entries, index)) == false)
-    {
+    while (index < array_size(entries) && entry_cmp(entry, array_get(entries, index)) == false){
         ++index;
     }
 
-    if (index < array_size(entries))
-    {
+    if (index < array_size(entries)){
         array_remove_by_index(entries, index);
     }
 }
