@@ -15,8 +15,7 @@ int comm_sz;
 int my_rank;
 
 
-double distance(Entry* e1, Entry* e2)
-{
+double distance(Entry* e1, Entry* e2){
     double dist = 0;
     int i;
     for (i = 0; i < e1->dim; ++i)
@@ -27,17 +26,15 @@ double distance(Entry* e1, Entry* e2)
     return sqrt(dist);
 }
 
-void print_arguments_message()
-{
+void print_arguments_message(){
     printf("\n>>> Invalid numbers of arguments! <<<\n");
     printf("\nThe following parameters must be informed in this order and separated by whitespace:\n");
-    printf("\n1. Branching Factor: An integer value;\n");
-    printf("\n2. Threshold: A float value;\n");
-    printf("\n3. Apply Merging Refinement: 1 for yes, 0 for no;\n");
-    printf("\n4. Dataset File Path: String;\n");
-    printf("\n5. Dataset Delimiters: String;\n");
-    printf("\n6. Ignore Last Column of the Dataset: 1 for yes, 0 for no;\n");
-    printf("\n\nThe line bellow is an example of a valid command line for running this program:\n");
+    printf("\n1. Branching Factor (int);\n");
+    printf("\n2. Threshold (float);\n");
+    printf("\n3. Apply Merging Refinement (1: yes, 0: no);\n");
+    printf("\n4. Dataset File Path (String);\n");
+    printf("\n5. Dataset Delimiters (String);\n");
+    printf("\n6. Ignore Last Column of the Dataset: (1: yes, 0: no).\n");
 }
 
 void print_clusters(Message_cluster mc, int dim){
@@ -66,12 +63,11 @@ void sendClustersTo(Message_cluster mc, int dest, int dim){
     }
 }
 
-Message_cluster receiveClusterFrom(int source, int dim){
+Message_cluster receiveClustersFrom(int source, int dim){
     Message_cluster mc;
     int nClusters=0;
     MPI_Recv(&nClusters, 1,MPI_INT,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     mc.nCluster=nClusters;
-
     int i;
     for(i=0;i<nClusters;i++){
         int d;
@@ -80,7 +76,6 @@ Message_cluster receiveClusterFrom(int source, int dim){
         }
         MPI_Recv(&mc.clusters[i].n, 1,MPI_DOUBLE,source,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }
-
     return mc;
 }
 
@@ -103,7 +98,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    //________________CONFIGURATION________________
+    //----------------CONFIGURATION----------------
     int branching_factor = atoi(argv[1]);
     double threshold = atof(argv[2]);
     int apply_merging_refinement = atoi(argv[3]);
@@ -119,8 +114,7 @@ int main(int argc, char* argv[])
 
     if(my_rank == 0){
         stream = fopen(input_file_path, "r");
-        if (stream == NULL)
-        {
+        if (stream == NULL){
             printf("ERROR: main.c/main(): \"Error opening file\"\n");
             exit(1);
         }
@@ -159,7 +153,7 @@ int main(int argc, char* argv[])
 
         free(instance);
         count++;
-    } while(fgets(line, 1024, stream) && ((my_rank<comm_sz-1) ? count < (filesize/comm_sz)*(my_rank+1) : true));    //se l'ultimo processo, legge fino a fine file, per evitare di non perdere valori
+    } while(fgets(line, 1024, stream) && ((my_rank<comm_sz-1) ? count < (filesize/comm_sz)*(my_rank+1) : true));    // if this is the last process, reads to the end of the file, to avoid not considering certain data samples
 
     fclose(stream);
 
@@ -167,8 +161,7 @@ int main(int argc, char* argv[])
     int receivers[MAX_STEPS];
     int nMerge=0;
 
-    if(my_rank == 0){
-        
+    if(my_rank == 0){    
         int phases;
         int i;
         for(phases = 0; phases < ceil(log2(comm_sz)); phases++){
@@ -179,10 +172,7 @@ int main(int argc, char* argv[])
                 senders[nMerge]=matched;
                 receivers[nMerge]=i;
                 nMerge++;
-
-			    //printf("%d - %d ", i, matched);
 		    }
-            //printf("\n");
 	    }
     }
 
@@ -196,12 +186,8 @@ int main(int argc, char* argv[])
             Message_cluster mc = tree_get_message_cluster_infos(tree);
             sendClustersTo(mc, receivers[i],dimensionality);
         }else if(receivers[i] == my_rank){
-            //Message_cluster mc = tree_get_message_cluster_infos(tree);
-            //print_clusters(mc, dimensionality);
+            Message_cluster mc2 = receiveClustersFrom(senders[i],dimensionality);
 
-            Message_cluster mc2 = receiveClusterFrom(senders[i],dimensionality);
-            //printf("\n\n %d) Clusters ricevuti da %d---------------- \n", my_rank, senders[i]);
-            //print_clusters(mc2, dimensionality);
             int n;
             for (n = 0; n < mc2.nCluster; n++){
                 Entry* e = entry_create_default(dimensionality);
@@ -210,20 +196,17 @@ int main(int argc, char* argv[])
                 e->dim=dimensionality;
 
                 int d;
-                for (d = 0; d < dimensionality; d++)
-                {
+                for (d = 0; d < dimensionality; d++){
                     e->ss[d] = e->ls[d] * e->ls[d];
                 }
                 
                 tree_insert_entry(tree,e);
-                //entry_free(e);
             }
         }
     }
 
     if(my_rank == 0){
         Message_cluster mc = tree_get_message_cluster_infos(tree);
-        //printf("\n\nFINE\n");
         print_clusters(mc, dimensionality);
     }
 

@@ -77,13 +77,6 @@ void tree_insert_entry(Tree* tree, Entry* entry){
         // therefore wee need to split the root to make more room
         tree_split_root(tree);
     }
-
-    /*
-    if (hold_memory == false)
-    {
-        entry_free(entry);
-    }
-    */
 }
 
 int tree_insert(Tree* tree, double* sample)
@@ -239,7 +232,6 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
                     mc.clusters[mc.nCluster].ls[dim] = entry->ls[dim];
                 }
                 mc.nCluster++;
-                //printf("\n\n%d",mc.nCluster);
             }
         }
         leaf = leaf->next_leaf;
