@@ -7,7 +7,7 @@
 
 void tree_split_root(Tree *tree);
 
-
+// Initialize a new CF tree
 Tree* tree_create(int dimensionality, int branching_factor, double threshold, double (*distance)(struct entry*, struct entry*), bool apply_merging_refinement){
     Tree* tree = (Tree*) smalloc(sizeof(Tree));
 
@@ -20,7 +20,7 @@ Tree* tree_create(int dimensionality, int branching_factor, double threshold, do
     return tree;
 }
 
-
+// Utility method to free the tree structure at the end of the program execution. Delete recursuvely all the element of the tree
 void tree_free_rec(Node* root){
     int i;
     int entries_size;
@@ -43,13 +43,14 @@ void tree_free_rec(Node* root){
     node_free(root);
 }
 
-
+// Utility method to free the tree structure at the end of the program execution
 void tree_free(Tree* tree){
     tree_free_rec(tree->root);
     node_free(tree->leaf_list);
     free(tree);
 }
 
+// Insert a new CF entry in the CF tree. Used during the merging phase, is a slight variation of tree_inser()
 void tree_insert_entry(Tree* tree, Entry* entry){
     int instance_index = tree->instance_index;
     tree->instance_index++;
@@ -57,7 +58,9 @@ void tree_insert_entry(Tree* tree, Entry* entry){
     entry->indexes = array_create(4);
     array_add(entry->indexes, integer_create(tree->dimensionality));
     bool hold_memory = false;
+    // Insert the entry, starting from the root
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
+
     if (dont_split == false){
         // if dontSplit is false, it means there was not enough space to insert the new entry in the tree,
         // therefore wee need to split the root to make more room
@@ -65,12 +68,14 @@ void tree_insert_entry(Tree* tree, Entry* entry){
     }
 }
 
+// Insert a new sample in the CF tree
 int tree_insert(Tree* tree, double* sample){
     int instance_index = tree->instance_index;
     tree->instance_index++;
-
+    // Create a new CF entry
     Entry* entry = entry_create(sample, tree->dimensionality, instance_index);
     bool hold_memory = false;
+    // Insert the entry, starting from the root
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
 
     if (dont_split == false){
@@ -80,13 +85,14 @@ int tree_insert(Tree* tree, double* sample){
     }
 
     if (hold_memory == false){
+        // If not necessary, free the CF entry to save memory space
         entry_free(entry);
     }
 
     return instance_index;
 }
 
-
+// Redistribute CF entries among tree, due to the absence of enough space for new entries
 void tree_split_root(Tree *tree){
     // the split happens by finding the two entries in this node that are the most far apart
     // we then use these two entries as a "pivot" to redistribute the old entries into two new nodes
@@ -143,57 +149,17 @@ void tree_split_root(Tree *tree){
     tree->root = new_root;
 }
 
-
-Array* tree_get_subclusters(Tree* tree){
-    Array* subclusters = array_create(1);
-    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
-
-    while(leaf != NULL){
-        if(!node_is_dummy(leaf)){
-
-            int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i){
-                Entry* entry = (Entry*) array_get(leaf->entries, i);
-                array_add(subclusters, array_clone(entry->indexes));
-            }
-        }
-        leaf = leaf->next_leaf;
-    }
-
-    return subclusters;
-}
-
-
-int tree_count_subclusters(Tree* tree){
-    int count = 0;
-    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
-
-    while(leaf != NULL){
-        if(!node_is_dummy(leaf)){
-            int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i){
-                Entry* entry = (Entry*) array_get(leaf->entries, i);
-                int j;
-                for(j  = 0; j < array_size(entry->indexes); ++j){
-                    ++count;
-                }
-            }
-        }
-        leaf = leaf->next_leaf;
-    }
-
-    return count;
-}
-
+// Utility method to get the key info (number of data points belonging and linear sum) of all clusters present in the CF tree
 Message_cluster tree_get_message_cluster_infos(Tree *tree){
     Message_cluster mc;
     mc.nCluster=0;
-    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
+    Node* leaf = tree->leaf_list->next_leaf; // The first leaf is dummy!
 
     while(leaf != NULL){
         if(!node_is_dummy(leaf)){
             int i;
             for(i  = 0; i < array_size(leaf->entries); ++i){
+                // Reach all the leaves in the CF tree and retrieve the cluster information stored in them
                 Entry* entry = (Entry*) array_get(leaf->entries, i);
                 mc.clusters[mc.nCluster].n = entry->n;
                 int dim;
@@ -207,29 +173,4 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
     }
 
     return mc;
-}
-
-int* tree_get_cluster_id_by_instance_index(Tree* tree){
-    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
-    int* cluster_id_by_entry_index = smalloc(tree->instance_index * sizeof(int));
-    int cluster_id = 0;
-
-    while(leaf != NULL){
-        if(!node_is_dummy(leaf)){
-            int i;
-            for(i  = 0; i < array_size(leaf->entries); ++i)
-            {
-                Entry* entry = (Entry*) array_get(leaf->entries, i);
-                int j;
-                for(j  = 0; j < array_size(entry->indexes); ++j){
-                    Integer* index = (Integer*) array_get(entry->indexes, j);
-                    cluster_id_by_entry_index[index->value] = cluster_id;
-                }
-                ++cluster_id;
-            }
-        }
-        leaf = leaf->next_leaf;
-    }
-
-    return cluster_id_by_entry_index;
 }

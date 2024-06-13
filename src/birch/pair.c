@@ -4,20 +4,21 @@
 #include "../../include/birch/pair.h"
 #include "../../include/util/smem.h"
 
-
+// Create a new default pair (essentially prepare the memory area for a pair to be used in the near future)
 Pair* pair_create_default(){
     return (Pair*) smalloc(sizeof(Pair));
 }
 
-
+// Create a new pair
 Pair* pair_create(Entry* e1, Entry* e2){
+    // Create the appropiate memory space and save the two entries
     Pair* pair = pair_create_default();
     pair->e1 = e1;
     pair->e2 = e2;
     return pair;
 }
 
-
+// Compare two pairs
 bool pair_cmp(Pair* p1, Pair* p2){
     if (entry_cmp(p1->e1, p2->e1) == true && entry_cmp(p1->e2, p2->e2) == true){
         return true;
@@ -30,7 +31,7 @@ bool pair_cmp(Pair* p1, Pair* p2){
     return false;
 }
 
-
+// Search for the two farthest CF entries belonging to a particular node
 Pair* pair_find_farthest(Array* entries, double (*distance)(struct entry*, struct entry*)){
     int i, j;
     double max_dist;
@@ -64,7 +65,7 @@ Pair* pair_find_farthest(Array* entries, double (*distance)(struct entry*, struc
     return pair;
 }
 
-
+// Search for the two closest CF entries belonging to a particular node
 Pair* pair_find_closest(Array* entries, double (*distance)(struct entry*, struct entry*)){
     int i, j;
     double min_dist;

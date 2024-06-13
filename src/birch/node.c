@@ -9,14 +9,13 @@
 
 Entry* find_closest_entry(Node *node, Entry* entry);
 void merging_refinement(Node* node, Pair* split_entries);
-int find_closest_subcluster(Node* node, Entry* entry);
 Pair* split_entry(Node* node, Entry* closest_entry);
 void replace_closest_pair_with_new_entries(Node *node, Pair* pair, Entry* new_entry_1, Entry* new_entry_2);
 void redistribute_entries(Node* node, Array* old_entries_1, Array* old_entries_2, Pair* close_entries, Entry* new_entry_1, Entry* new_entry_2);
 void redistribute_entries_merge(Node *node, Array* old_entries_1, Array* old_entries_2, Entry* new_entry);
 void replace_closest_pair_with_new_merged_entry(Node* node, Pair* pair, Entry* new_entry);
 
-
+// Create a new node for the CF tree
 Node* node_create(int branching_factor, double threshold, double (*distance)(struct entry*, struct entry*), bool is_leaf, bool apply_merging_refinement){
     Node* node = (Node*) smalloc(sizeof(Node));
     node->branching_factor = branching_factor;
@@ -30,13 +29,13 @@ Node* node_create(int branching_factor, double threshold, double (*distance)(str
     return node;
 }
 
-
+// Utility method to free all the nodes created at the end of the program execution
 void node_free(Node *node){
     array_free(node->entries);
     free(node);
 }
 
-
+// Check if the node passed is a placeholder or not
 bool node_is_dummy(Node* node){
     if ((node->prev_leaf != NULL || node->next_leaf != NULL) && node->branching_factor == 0 && node->threshold == 0 && array_size(node->entries)){
         return true;
@@ -46,7 +45,7 @@ bool node_is_dummy(Node* node){
     }
 }
 
-
+// Check all the CF entries in the node to identify the closest one with the CF entry in input
 Entry* find_closest_entry(Node *node, Entry* entry){
     int i;
     double min_dist;
@@ -57,10 +56,13 @@ Entry* find_closest_entry(Node *node, Entry* entry){
     closest_entry = NULL;
     min_dist = DBL_MAX;
 
+    // Explore all CF entries in the node
     for (i = 0; i < array_size(node->entries); ++i){
         curr_entry = (Entry*) array_get(node->entries, i);
+        // Compute the euclidean distance between the entries
         curr_dist = node->distance(curr_entry, entry);
-
+        
+        // Update min_dist and closest_entry if it is found a new closest entry
         if (curr_dist < min_dist){
             min_dist = curr_dist;
             closest_entry = curr_entry;
@@ -70,19 +72,7 @@ Entry* find_closest_entry(Node *node, Entry* entry){
     return closest_entry;
 }
 
-
-int find_closest_subcluster(Node* node, Entry* entry)
-{
-    Entry* closest_entry = find_closest_entry(node, entry);
-
-    if(closest_entry->child == NULL){
-        return closest_entry->subcluster_id;
-    }
-
-    return find_closest_subcluster(closest_entry->child, entry);
-}
-
-
+// Split entry in case there is not enough space in the node
 Pair* split_entry(Node* node, Entry* closest_entry){
     // IF there was a child, but we could not insert the new entry without problems THAN
     // split the child of closest entry
@@ -154,8 +144,7 @@ Pair* split_entry(Node* node, Entry* closest_entry){
 
     return new_pair;
 }
-
-
+// Redistribute entries of node of the CF tree whenever a split of entries is taking place
 void node_redistribute_entries(Node* node, Array* old_entries, Pair *far_entries, Entry* new_entry_1, Entry* new_entry_2){
     int i;
     double dist_1;
@@ -178,7 +167,7 @@ void node_redistribute_entries(Node* node, Array* old_entries, Pair *far_entries
     }
 }
 
-
+// Redistribute CF entries of node in case of merging refinement
 void redistribute_entries(Node* node, Array* old_entries_1, Array* old_entries_2, Pair* close_entries, Entry* new_entry_1, Entry* new_entry_2){
     int i;
     Array* v;
@@ -218,7 +207,7 @@ void redistribute_entries(Node* node, Array* old_entries_1, Array* old_entries_2
     }
 }
 
-
+// Redistribute CF entries of two nodes whenever the merging refinement mthod requires the merge of two different nodes of the CF tree 
 void redistribute_entries_merge(Node *node, Array* old_entries_1, Array* old_entries_2, Entry* new_entry){
     int i;
     Array* v;
@@ -235,7 +224,7 @@ void redistribute_entries_merge(Node *node, Array* old_entries_1, Array* old_ent
     }
 }
 
-
+// Replaces the closest pair of entries in the node with two new entries when it is required by the merging refinement
 void replace_closest_pair_with_new_entries(Node *node, Pair* pair, Entry* new_entry_1, Entry* new_entry_2){
     int i;
 
@@ -249,7 +238,7 @@ void replace_closest_pair_with_new_entries(Node *node, Pair* pair, Entry* new_en
     }
 }
 
-
+// Replaces the closest pair of entries in the node with a single new merged entry when it is required by the merging refinement
 void replace_closest_pair_with_new_merged_entry(Node* node, Pair* pair, Entry* new_entry){
     int i;
 
@@ -263,7 +252,7 @@ void replace_closest_pair_with_new_merged_entry(Node* node, Pair* pair, Entry* n
     }
 }
 
-
+// Apply merging refinement to a node (Performed, when necessary, only if specified by the user when launching the execution)
 void merging_refinement(Node* node, Pair* split_entries){
 
     Node* old_node_1;
@@ -368,7 +357,7 @@ void merging_refinement(Node* node, Pair* split_entries){
     // merging refinement is done
 }
 
-
+// Method to insert a new CF entry in one of the node of the CF tree.
 bool node_insert_entry(Node* node, Entry* entry, bool* hold_memory){
 
     Entry* closest_entry;

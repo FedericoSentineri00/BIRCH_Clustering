@@ -7,7 +7,7 @@
 
 #define INDEXES_INITIAL_SIZE 4
 
-
+// Initialize a new CF entry
 Entry* entry_create_default(int dim){
     Entry* entry = (Entry*) smalloc(sizeof(Entry));
 
@@ -22,7 +22,7 @@ Entry* entry_create_default(int dim){
     return entry;
 }
 
-
+// Create a new CF entry
 Entry* entry_create(double* x, int dim, int index){
     int i;
 
@@ -43,7 +43,7 @@ Entry* entry_create(double* x, int dim, int index){
     return entry;
 }
 
-
+// Utility method to free entries at the end of the program execution
 void entry_free(Entry *entry){
     entry->dim = 0;
     entry->n = 0;
@@ -63,16 +63,19 @@ void entry_free(Entry *entry){
     free(entry);
 }
 
-
+// Update CF entry whenever during CF tree creation it can be joined by another CF entry 
 void entry_update(Entry *e1, Entry *e2){
     int i;
 
+    // Update the number of elements in the entry
     e1->n += e2->n;
 
+    // Update the linear sum
     for(i = 0; i < e1->dim; ++i){
         e1->ls[i] += e2->ls[i];
     }
 
+    // Update square sum
     for(i = 0; i < e1->dim; i++){
         e1->ss[i] += e2->ss[i];
     }
@@ -88,7 +91,7 @@ void entry_update(Entry *e1, Entry *e2){
 
 }
 
-
+// Check if the distance between two CF entries is within the specified threshold
 bool entry_is_within_threshold(Entry *e1, Entry *e2, double threshold, double (*distance)(Entry*, Entry*)){
     double dist = distance(e1, e2);
 
@@ -100,7 +103,7 @@ bool entry_is_within_threshold(Entry *e1, Entry *e2, double threshold, double (*
     }
 }
 
-
+// Compare to CF entries
 bool entry_cmp(Entry *e1, Entry *e2){
     if (e1->n != e2->n)
         return false;
@@ -132,13 +135,15 @@ bool entry_cmp(Entry *e1, Entry *e2){
     return true;
 }
 
-
+// Utility method used to remove a CF entry from a set of entries
 void entry_remove(Array* entries, Entry* entry){
     int index = 0;
+    // Check the requested CF entry in the array
     while (index < array_size(entries) && entry_cmp(entry, array_get(entries, index)) == false){
         ++index;
     }
 
+    // Remove the requested CF entry thanks to the index
     if (index < array_size(entries)){
         array_remove_by_index(entries, index);
     }
