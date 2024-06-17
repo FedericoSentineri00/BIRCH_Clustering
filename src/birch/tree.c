@@ -51,12 +51,12 @@ void tree_free(Tree* tree){
 }
 
 // Insert a new CF entry in the CF tree. Used during the merging phase, is a slight variation of tree_inser()
-void tree_insert_entry(Tree* tree, Entry* entry){
+int tree_insert_entry(Tree* tree, Entry* entry){
     int instance_index = tree->instance_index;
     tree->instance_index++;
 
     entry->indexes = array_create(4);
-    array_add(entry->indexes, integer_create(tree->dimensionality));
+    array_add(entry->indexes, integer_create(instance_index));
     bool hold_memory = false;
     // Insert the entry, starting from the root
     bool dont_split = node_insert_entry(tree->root, entry, &hold_memory);
@@ -66,6 +66,8 @@ void tree_insert_entry(Tree* tree, Entry* entry){
         // therefore wee need to split the root to make more room
         tree_split_root(tree);
     }
+
+    return instance_index;
 }
 
 // Insert a new sample in the CF tree
@@ -173,4 +175,36 @@ Message_cluster tree_get_message_cluster_infos(Tree *tree){
     }
 
     return mc;
+}
+
+// Return the cluster for each data sample within the CF Tree
+int* tree_get_cluster_id_by_instance_index(Tree* tree)
+{
+    Node* leaf = tree->leaf_list->next_leaf; // the first leaf is dummy!
+    int* cluster_id_by_entry_index = smalloc(tree->instance_index * sizeof(int));
+    int cluster_id = 0;
+
+    while(leaf != NULL)
+    {
+        if(!node_is_dummy(leaf))
+        {
+            // Explore each CF entries in the leaf nodes
+            int i;
+            for (i = 0; i < array_size(leaf->entries); ++i)
+            {
+                // All data samples within a CF entry are part of a cluster
+                int j;
+                Entry* entry = (Entry*) array_get(leaf->entries, i);
+                for (j = 0; j < array_size(entry->indexes); ++j)
+                {
+                    Integer* index = (Integer*) array_get(entry->indexes, j);
+                    cluster_id_by_entry_index[index->value] = cluster_id;
+                }
+                ++cluster_id;
+            }
+        }
+        leaf = leaf->next_leaf;
+    }
+
+    return cluster_id_by_entry_index;
 }

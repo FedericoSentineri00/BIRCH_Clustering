@@ -93,6 +93,85 @@ Message_cluster receiveClustersFrom(int source, int dim){
     return mc;
 }
 
+// Print into a csv file the results of the clustering after the construction of the initial CF tree by a process
+void print_output(Tree* tree, Array* indexes, char *output_file_path, int id)
+{
+    // Create and open the file for the output of the process with id = id
+    char file_name[1024] = "";
+    sprintf(file_name,"%s_%d.csv",output_file_path,id);
+    FILE *f = fopen(file_name, "w");
+    if (f == NULL)
+    {
+        printf("ERROR: main.c/print_output(): \"Error opening file\"\n");
+        exit(1);
+    }
+
+    // Get clusters id
+    int* cluster_id_by_entry_index = tree_get_cluster_id_by_instance_index(tree);
+
+    // Get the cluster for each data samples in the tree
+    int i;
+    for (i = 0; i < array_size(indexes); ++i)
+    {
+        Integer* entry_index = (Integer*) array_get(indexes, i);
+        fprintf(f, "%d\n", cluster_id_by_entry_index[entry_index->value]);
+    }
+
+    // Close file stream
+    fclose(f);
+
+    // Deelete tmp structures
+    free(cluster_id_by_entry_index);
+}
+
+// Print into a csv file the results of the clustering after the merge of two partial trees
+void merge_output(Tree* tree, Array* indexes, char *output_file_path, int id, int id_sender, int extra)
+{
+    char file_name[1024] = "";
+
+    // Open the file for the outpout for process id
+    sprintf(file_name,"%s_%d.csv",output_file_path,id);
+    FILE *fw = fopen(file_name, "a");
+
+    // Open the file of the output of process id_sender
+    sprintf(file_name,"%s_%d.csv",output_file_path,id_sender);
+    FILE *fr = fopen(file_name, "r");
+
+    if (fw == NULL || fr == NULL)
+    {
+        printf("ERROR: main.c/merge_output(): \"Error opening file\"\n");
+        exit(1);
+    }
+
+    // Get clusters id
+    int* cluster_id_by_entry_index = tree_get_cluster_id_by_instance_index(tree);
+
+    // Get the clusters id for the centroids inserted during the merging phase of the CF tree maintained by process id and process id_sender
+    Array* cluster_id_centroids = array_create(20);
+    int i;
+    for (i = extra; i < array_size(indexes); ++i)
+    {
+        Integer* entry_index = (Integer*) array_get(indexes, i);
+        array_add(cluster_id_centroids,integer_create(cluster_id_by_entry_index[entry_index->value]));
+    }
+
+    // Add in the output file of process with id = id the cluster associated to data samples on which process id_sender worked previuosly
+    char line[100];
+    while(fgets(line, 100, fr)){
+        Integer* cluster_id = (Integer*) array_get(cluster_id_centroids, atoi(line));
+        fprintf(fw, "%d\n", cluster_id->value);
+    } 
+
+    // Close files
+    fclose(fw);
+    fclose(fr);
+
+    // Free tmp structures
+    free(cluster_id_by_entry_index);
+
+    array_free(cluster_id_centroids);
+}
+
 int main(int argc, char* argv[]){
     // Variable used to collect time spent for execution
     double t1,t2;
@@ -121,6 +200,7 @@ int main(int argc, char* argv[]){
     char* input_file_path = argv[4];
     char* column_delimiter = argv[5];
     int last_column_is_label = atoi(argv[6]);
+    char* output_file_path = "./BIRCH_Clustering/output";
     
     FILE* stream;
     char line[1024];
@@ -179,6 +259,9 @@ int main(int argc, char* argv[]){
 
     // Close the file stream
     fclose(stream);
+    
+    // Print the results obtained after the creation of the CF tree for the partion of dataset managed by this process
+    print_output(tree, instances_indexes, output_file_path,my_rank);
 
     // Array containing, for each merging round, who has to send its clusters info
     int senders[MAX_STEPS];
@@ -214,6 +297,7 @@ int main(int argc, char* argv[]){
 
     // Merging phase
     int i;
+    int extra;
     for(i=0; i<nMerge;i++){
         // For each merging round, process checks senders and receivers
         if(senders[i] == my_rank){
@@ -223,24 +307,31 @@ int main(int argc, char* argv[]){
         }else if(receivers[i] == my_rank){
             // If its id is in receivers[i], waits and receives clusters info from process with id senders[i]
             Message_cluster mc2 = receiveClustersFrom(senders[i],dimensionality);
+            // Get the number of entries preent in the CF tree at the moment
+            extra = tree->instance_index;
+
             // Based on the received info, for each cluster create a new CF entry (it represents the centroid of the cluster) and insert the entry in the CF tree
             int n;
             for (n = 0; n < mc2.nCluster; n++){
                 // Initialize CF entry
                 Entry* e = entry_create_default(dimensionality);
-                // Set numer of elements and linear sum
+                // Set numer of elements and dimensionality
                 e->n=mc2.clusters[n].n;
-                e->ls=mc2.clusters[n].ls;
                 e->dim=dimensionality;
 
-                //Compute the square sum (via the linear sum)
+                // Save the linear sum and compute the square sum (via the linear sum)
                 int d;
                 for (d = 0; d < dimensionality; d++){
+                    e->ls[d] = mc2.clusters[n].ls[d];
                     e->ss[d] = e->ls[d] * e->ls[d];
                 }
                 
-                tree_insert_entry(tree,e);
+                int instance_index = tree_insert_entry(tree,e);
+                array_add(instances_indexes, integer_create(instance_index));
             }
+            
+            // Update the output file of this process after the merging pahse with process with id = senders[i]
+            merge_output(tree, instances_indexes, output_file_path,my_rank,senders[i],extra);
         }
     }
 
@@ -248,12 +339,15 @@ int main(int argc, char* argv[]){
     if(my_rank == 0){
         Message_cluster mc = tree_get_message_cluster_infos(tree);
         print_clusters(mc, dimensionality);
-    }
-
-    // If this is process 0, compute and print the execution time
-    if(my_rank == 0){
         t2 = MPI_Wtime();
         printf("\n\nEXECUTION TIME: %f s\n\n",(t2-t1));
+        
+        int i;
+        for(i = 1; i < comm_sz; i++){
+            char file_name[1024] = "";
+            sprintf(file_name,"%s_%d.csv",output_file_path,i);
+            remove(file_name);
+        }
     }
     
     // Free all the structures used
