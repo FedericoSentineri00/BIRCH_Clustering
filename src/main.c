@@ -335,7 +335,7 @@ int main(int argc, char* argv[]){
         }
     }
 
-    // If this is process 0, after the merging phase print the info of the final CF tree
+    // If this is process 0, after the merging phase print the info of the final CF tree, execution time and remove intermediate csv files
     if(my_rank == 0){
         Message_cluster mc = tree_get_message_cluster_infos(tree);
         print_clusters(mc, dimensionality);
